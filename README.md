@@ -1,82 +1,113 @@
-# AI Task Processing Platform
+# AI Task Processing Platform - COMPLETE SETUP GUIDE
 
-A production-ready MERN stack AI Task Processing Platform with Python worker, Docker, Kubernetes (k3s), Argo CD (GitOps), and CI/CD.
+A production-ready MERN stack AI Task Processing Platform with Python worker.
+
+**This guide is FREE and runs entirely on your local machine using Docker.**
+
+---
+
+## WHAT THIS PROJECT DOES
+
+1. Register/Login as a user
+2. Create AI tasks (uppercase, lowercase, reverse text, word count)
+3. Tasks run in BACKGROUND (async) via Redis queue
+4. Check task status and see results
+
+---
+
+## STEP 1: INSTALL DOCKER (Already done!)
+
+You already have Docker Desktop installed. Good!
+
+---
+
+## STEP 2: RUN THE APPLICATION
+
+Open Terminal (PowerShell or Command Prompt) and run:
+
+```bash
+cd "C:\Users\nahul\Desktop\ollama code\ai-task-platform"
+docker-compose up
+```
+
+Wait 2-3 minutes for everything to start. You'll see logs like:
+- "Connected to MongoDB"
+- "Server running on port 5000"
+
+---
+
+## STEP 3: ACCESS THE APP
+
+Open your browser and go to: **http://localhost:3000**
+
+You should see the Login page. Click "Sign Up" to create an account, then login.
+
+---
+
+## STEP 4: USE THE APP
+
+1. Click **"+ New Task"**
+2. Enter a title (e.g., "My first task")
+3. Choose an operation:
+   - **uppercase** - makes text BIG
+   - **lowercase** - makes text small
+   - **reverse** - reverses text backwards
+   - **word_count** - counts words
+4. Enter some text in the input box
+5. Click **"Create Task"**
+6. Click on your task to see it processing and the result!
+
+---
+
+## STOPPING THE APP
+
+Press `Ctrl+C` in the terminal to stop.
+
+To remove all containers: `docker-compose down`
+
+To start again: `docker-compose up`
+
+---
+
+## WHAT'S RUNNING
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | React web app |
+| Backend | http://localhost:5000 | API server |
+| MongoDB | localhost:27017 | Database |
+| Redis | localhost:6379 | Queue |
+
+---
+
+## IF SOMETHING BREAKS
+
+Check logs:
+```bash
+docker-compose logs backend
+docker-compose logs worker
+docker-compose logs mongodb
+```
+
+Restart everything:
+```bash
+docker-compose down
+docker-compose up
+```
+
+---
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Frontend   │────▶│   Backend   │────▶│   MongoDB   │
-│   (React)   │     │  (Node.js)  │     │             │
-└─────────────┘     └──────┬──────┘     └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐     ┌─────────────┐
-                    │   Redis     │◀────│   Worker    │
-                    │   (Queue)   │     │  (Python)   │
-                    └─────────────┘     └─────────────┘
+Browser → Frontend (React) → Backend (Node.js) → MongoDB
+                    ↓
+              Redis Queue
+                    ↓
+              Worker (Python) → Updates MongoDB
 ```
 
-## Features
-
-- **User Authentication**: JWT-based registration and login
-- **Task Management**: Create, list, and view AI tasks
-- **Async Processing**: Tasks processed asynchronously via Redis queue
-- **4 Operations**: uppercase, lowercase, reverse string, word count
-- **Real-time Status**: Track task status (pending → running → success/failed)
-- **Docker Support**: Multi-stage builds, non-root users
-- **Kubernetes Ready**: Deployments, Services, Ingress, HPA
-- **GitOps**: Argo CD integration with auto-sync
-
-## Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Frontend | React 18 + Vite |
-| Backend | Node.js + Express |
-| Worker | Python 3.12 + RQ |
-| Database | MongoDB 7 |
-| Queue | Redis 7 |
-| Container | Docker |
-| Orchestration | Kubernetes (k3s) |
-| GitOps | Argo CD |
-
-## Quick Start
-
-### Prerequisites
-
-- Docker & Docker Compose
-- Node.js 20+
-- Python 3.12+
-- MongoDB 7
-- Redis 7
-
-### Local Development
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/ai-task-platform.git
-cd ai-task-platform
-
-# Start all services
-docker-compose up
-
-# Or run locally without Docker:
-# Backend
-cd backend && npm install && npm run dev
-
-# Worker (in another terminal)
-cd worker && pip install -r requirements.txt && python main.py
-
-# Frontend
-cd frontend && npm install && npm run dev
-```
-
-### Access the App
-
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-- Health Check: http://localhost:5000/health
+---
 
 ## API Endpoints
 
