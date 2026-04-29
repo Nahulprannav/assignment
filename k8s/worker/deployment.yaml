@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-config
+  namespace: ai-task-platform
+data:
+  WORKER_QUEUE: "task-processing"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: worker-secret
+  namespace: ai-task-platform
+type: Opaque
+stringData:
+  MONGODB_URI: "mongodb://mongodb-service:27017/ai-task-platform"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: ai-task-platform
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: worker
+          image: ${DOCKER_HUB_USERNAME}/ai-task-worker:${IMAGE_TAG}
+          envFrom:
+            - configMapRef:
+                name: worker-config
+            - secretRef:
+                name: worker-secret
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import sys; sys.exit(0)"]
+            initialDelaySeconds: 15
+            periodSeconds: 20

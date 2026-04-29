@@ -1,0 +1,150 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: docker.io
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Backend
+        run: |
+          cd ai-task-platform/backend
+          npm ci
+          npm run lint
+
+      - name: Lint Worker
+        run: |
+          cd ai-task-platform/worker
+          pip install flake8
+          flake8 . --max-line-length=100 --ignore=E501,W503
+
+      - name: Lint Frontend
+        run: |
+          cd ai-task-platform/frontend
+          npm ci
+          npm run lint
+
+  build-backend:
+    name: Build Backend Image
+    runs-on: ubuntu-latest
+    needs: lint
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push backend
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ai-task-platform/backend
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/ai-task-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-worker:
+    name: Build Worker Image
+    runs-on: ubuntu-latest
+    needs: lint
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push worker
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ai-task-platform/worker
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/ai-task-worker:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-frontend:
+    name: Build Frontend Image
+    runs-on: ubuntu-latest
+    needs: lint
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and push frontend
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ai-task-platform/frontend
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/ai-task-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  update-infra:
+    name: Update Infrastructure
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-worker, build-frontend]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}-infra
+          token: ${{ secrets.PAT }}
+
+      - name: Update infra image tags
+        run: |
+          cd k8s/backend
+          sed -i 's/\${IMAGE_TAG}/${{ github.sha }}/g' deployment.yaml
+          cd ../worker
+          sed -i 's/\${IMAGE_TAG}/${{ github.sha }}/g' deployment.yaml
+          cd ../frontend
+          sed -i 's/\${IMAGE_TAG}/${{ github.sha }}/g' deployment.yaml
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.PAT }}
+          repository: ${{ github.repository }}-infra
+          commit-message: "Update images to ${{ github.sha }}"
+          title: "Update image tags to ${{ github.sha }}"
+          body: "Automated update from ${{ github.event.head_commit.message }}"
